@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, replace
 from typing import Any
@@ -64,7 +65,10 @@ def anthropic_sdk_client(credential: str) -> anthropic.AsyncAnthropic:
     A member who signed in with their Anthropic account holds an OAuth access token rather than an
     API key, and the two authenticate differently on the same wire: a token is a bearer under the
     OAuth beta, a key is `x-api-key`. The prefix is what tells them apart, so one slot carries
-    whichever the member connected and the branch is a wire fact rather than a second setting."""
+    whichever the member connected and the branch is a wire fact rather than a second setting.
+
+    An org-level key is refused unless every request names its workspace, so a deploy sets
+    `UFO_ANTHROPIC_WORKSPACE_ID` (or the bare upstream name) once and the header rides along."""
     if is_oauth_credential(credential):
         return anthropic.AsyncAnthropic(
             auth_token=credential,
@@ -72,8 +76,14 @@ def anthropic_sdk_client(credential: str) -> anthropic.AsyncAnthropic:
             max_retries=0,
             timeout=PROVIDER_TIMEOUT_SECONDS,
         )
+    workspace_id = os.environ.get("UFO_ANTHROPIC_WORKSPACE_ID") or os.environ.get(
+        "ANTHROPIC_WORKSPACE_ID"
+    )
     return anthropic.AsyncAnthropic(
-        api_key=credential, max_retries=0, timeout=PROVIDER_TIMEOUT_SECONDS
+        api_key=credential,
+        default_headers={"anthropic-workspace-id": workspace_id} if workspace_id else None,
+        max_retries=0,
+        timeout=PROVIDER_TIMEOUT_SECONDS,
     )
 
 

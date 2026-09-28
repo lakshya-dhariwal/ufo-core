@@ -1431,6 +1431,21 @@ def test_sdk_client_factories_disable_sdk_retries() -> None:
     assert openai_sdk.max_retries == 0
 
 
+def test_anthropic_workspace_id_rides_as_a_default_header(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An org-level key is refused unless every request names its workspace, so the deploy sets it
+    once and the header rides along. UFO_ scopes the setting to ufo; the bare name keeps an
+    environment that already exports it working."""
+    monkeypatch.setenv("ANTHROPIC_WORKSPACE_ID", "wrkspc_bare")
+    assert anthropic_sdk_client("key").default_headers["anthropic-workspace-id"] == "wrkspc_bare"
+    monkeypatch.setenv("UFO_ANTHROPIC_WORKSPACE_ID", "wrkspc_ufo")
+    assert anthropic_sdk_client("key").default_headers["anthropic-workspace-id"] == "wrkspc_ufo"
+    monkeypatch.delenv("UFO_ANTHROPIC_WORKSPACE_ID")
+    monkeypatch.delenv("ANTHROPIC_WORKSPACE_ID")
+    assert "anthropic-workspace-id" not in anthropic_sdk_client("key").default_headers
+
+
 async def test_anthropic_default_request_enables_adaptive_thinking_without_effort() -> None:
     create = CapturingCreate(
         ([anthropic_message_start(input_tokens=1), anthropic_text("ok"), anthropic_output(1)], None)
